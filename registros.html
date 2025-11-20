@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador de Registros - Golden Age RPG</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* --- ESTILO VISUAL --- */
+    :root {
+      --bg: #101118;
+      --panel: #1b1d29;
+      --input-bg: #0c0d13;
+      --border: #2a2d3d;
+      --accent: #6D20C5;
+      --accent-hover: #8a40e3;
+      --text: #e0e0e0;
+      --text-dim: #a0a0a0;
+      --success: #20c56d;
+      --danger: #c52020;
+      --warn: #e08f2f;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 20px;
+      line-height: 1.5;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 20px;
+    }
+    h1 { color: var(--accent); font-weight: 900; font-size: 2.2em; margin-bottom: 10px; }
+    p { color: var(--text-dim); }
+
+    /* --- Controles --- */
+    .controls-area {
+      background-color: var(--panel);
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .mode-selector label { margin-right: 10px; font-weight: 700; color: var(--accent); }
+
+    select, input[type="text"], input[type="url"] {
+      background-color: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px;
+      border-radius: 4px;
+      font-family: 'Roboto', sans-serif;
+      width: 100%;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: #fff;
+    }
+    .btn-primary { background-color: var(--accent); }
+    .btn-primary:hover { background-color: var(--accent-hover); }
+    .btn-success { background-color: var(--success); }
+    .btn-danger { background-color: var(--danger); }
+    .btn-warn { background-color: var(--warn); color: #111; }
+
+    /* --- Importação --- */
+    .import-area {
+      background-color: var(--panel);
+      border: 1px dashed var(--border);
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .import-area h3 { color: var(--warn); margin-bottom: 10px; font-size: 1.1em; }
+    textarea {
+      width: 100%;
+      height: 100px;
+      background-color: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.85em;
+      padding: 10px;
+      border-radius: 4px;
+      resize: vertical;
+      margin-bottom: 10px;
+    }
+
+    /* --- Editor --- */
+    .editor-form {
+      background-color: var(--panel);
+      border: 1px solid var(--accent);
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 15px;
+      align-items: end;
+    }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-size: 0.8em; color: var(--text-dim); margin-bottom: 4px; font-weight: 700; }
+
+    /* --- Lista --- */
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    #search-bar { width: 300px; }
+
+    .registry-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 10px;
+      max-height: 500px;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+    .registry-list::-webkit-scrollbar { width: 8px; }
+    .registry-list::-webkit-scrollbar-track { background: var(--bg); }
+    .registry-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .registry-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    .reg-card {
+      background-color: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      position: relative;
+      transition: transform 0.1s;
+    }
+    .reg-card:hover { border-color: var(--text-dim); }
+    .reg-card.editing { border-color: var(--accent); background-color: rgba(109, 32, 197, 0.1); }
+
+    .card-top { display: flex; justify-content: space-between; font-weight: 700; color: #fff; }
+    .card-sub { font-size: 0.9em; color: var(--text-dim); display: flex; justify-content: space-between; }
+    .card-actions {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      display: none;
+    }
+    .reg-card:hover .card-actions { display: flex; gap: 5px; }
+    .action-btn { padding: 4px 8px; font-size: 0.8em; }
+
+    .tag-status { font-size: 0.7em; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; }
+    .tag-full { background: var(--danger); color: #fff; }
+    .tag-open { background: var(--success); color: #000; }
+    .tag-normal { background: var(--border); color: var(--text-dim); }
+
+    /* --- Output --- */
+    .output-area { margin-top: 40px; border-top: 2px dashed var(--border); padding-top: 20px; }
+    .output-area h3 { color: var(--success); margin-bottom: 10px; }
+    #final-code { height: 200px; color: var(--success); border-color: var(--success); }
+    .hidden { display: none !important; }
+
+    @media(max-width: 768px) {
+      .editor-form { grid-template-columns: 1fr; }
+      .controls-area { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Gerenciador de Registros</h1>
+      <p>Golden Age RPG</p>
+    </header>
+
+    <div class="controls-area">
+      <div class="mode-selector">
+        <label>Modo de Edição:</label>
+        <select id="registry-type">
+          <option value="pp">Registro de Aparência (Photoplayer)</option>
+          <option value="tech">Registro de Técnicas</option>
+        </select>
+      </div>
+      <div class="stats">
+        <span id="total-items">0</span> itens cadastrados.
+      </div>
+    </div>
+
+    <div class="import-area">
+      <h3>1. Importar Código Existente</h3>
+      <textarea id="import-code" placeholder="Cole aqui o código HTML inteiro do post de registros (desde o <link> até o final)..."></textarea>
+      <button class="btn-warn" id="btn-import">Ler e Carregar Lista</button>
+    </div>
+
+    <h3>2. Gerenciar Lista</h3>
+    <div class="editor-form">
+      <div class="form-group">
+        <label id="label-name">Nome (Personagem)</label>
+        <input type="text" id="edit-name" placeholder="Ex: Gojo Satoru (Jujutsu Kaisen)">
+      </div>
+      
+      <div class="form-group tech-only hidden">
+        <label>Vagas (Ex: 0/3)</label>
+        <input type="text" id="edit-count" placeholder="0/1">
+      </div>
+      <div class="form-group tech-only hidden">
+        <label>Status</label>
+        <select id="edit-status">
+          <option value="">Normal (Sem cor)</option>
+          <option value="is-open">Livre (Verde)</option>
+          <option value="is-full">Cheio (Vermelho)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Usuário (Ex: @Ayaka)</label>
+        <input type="text" id="edit-user" placeholder="@Nome">
+      </div>
+      <div class="form-group">
+        <label>Link do Perfil</label>
+        <input type="text" id="edit-link" placeholder="https://...">
+      </div>
+      
+      <div class="form-group">
+        <button class="btn-primary" id="btn-add-update">Adicionar</button>
+      </div>
+      <input type="hidden" id="edit-id">
+    </div>
+
+    <div class="list-header">
+      <h4>Itens Atuais</h4>
+      <input type="text" id="search-bar" placeholder="Filtrar por nome...">
+      <button class="btn-danger" id="btn-clear-all" style="font-size: 0.8em;">Limpar Tudo</button>
+    </div>
+    <div id="registry-list-visual" class="registry-list"></div>
+
+    <div class="output-area">
+      <h3>3. Código Final (Linha Única)</h3>
+      <p>Copie este código e substitua o conteúdo da postagem no fórum.</p>
+      <textarea id="final-code" readonly></textarea>
+      <button class="btn-success" id="btn-copy" style="width: 100%;">Copiar Código</button>
+    </div>
+
+  </div>
+
+  <script>
+    // --- ESTADO DA APLICAÇÃO ---
+    let registryItems = [];
+    let currentMode = 'pp';
+    let editingId = null;
+
+    // --- SELETORES ---
+    const typeSelect = document.getElementById('registry-type');
+    const importBtn = document.getElementById('btn-import');
+    const importText = document.getElementById('import-code');
+    const listVisual = document.getElementById('registry-list-visual');
+    const searchBar = document.getElementById('search-bar');
+    const outputText = document.getElementById('final-code');
+    const copyBtn = document.getElementById('btn-copy');
+    const addUpdateBtn = document.getElementById('btn-add-update');
+    const clearAllBtn = document.getElementById('btn-clear-all');
+    const totalCountSpan = document.getElementById('total-items');
+    const labelName = document.getElementById('label-name');
+
+    // Campos do Form
+    const editName = document.getElementById('edit-name');
+    const editCount = document.getElementById('edit-count');
+    const editStatus = document.getElementById('edit-status');
+    const editUser = document.getElementById('edit-user');
+    const editLink = document.getElementById('edit-link');
+    const editIdField = document.getElementById('edit-id');
+
+    // --- PARSE ---
+    function parseHTML(html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const items = [];
+      const itemElements = doc.querySelectorAll('.jjk-reg-item');
+
+      itemElements.forEach(el => {
+        const name = el.querySelector('.jjk-reg-name')?.textContent.trim() || '';
+        const count = el.querySelector('.jjk-reg-count')?.textContent.trim() || '';
+        const userLink = el.querySelector('.jjk-reg-users a');
+        const userText = el.querySelector('.jjk-reg-users')?.textContent.trim() || '';
+        
+        let user = '';
+        let link = '';
+
+        if (userLink) {
+          user = userLink.textContent.trim();
+          link = userLink.getAttribute('href') || '#';
+        } else {
+          user = userText;
+          link = '#';
+        }
+
+        let status = '';
+        if (el.classList.contains('is-open')) status = 'is-open';
+        if (el.classList.contains('is-full')) status = 'is-full';
+
+        items.push({ id: Date.now() + Math.random(), name, count, status, user, link });
+      });
+      return items;
+    }
+
+    // --- RENDER ---
+    function renderList() {
+      listVisual.innerHTML = '';
+      const filter = searchBar.value.toLowerCase();
+
+      const filteredItems = registryItems
+        .filter(item => item.name.toLowerCase().includes(filter) || item.user.toLowerCase().includes(filter))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      filteredItems.forEach(item => {
+        const card = document.createElement('div');
+        card.className = `reg-card ${editingId === item.id ? 'editing' : ''}`;
+        
+        let statusBadge = '';
+        if (currentMode === 'tech') {
+           if (item.status === 'is-open') statusBadge = '<span class="tag-status tag-open">Livre</span>';
+           else if (item.status === 'is-full') statusBadge = '<span class="tag-status tag-full">Cheio</span>';
+           else statusBadge = '<span class="tag-status tag-normal">Normal</span>';
+        }
+
+        card.innerHTML = `
+          <div class="card-top">
+            <span>${item.name}</span>
+            ${currentMode === 'tech' ? `<span style="font-size:0.8em">${item.count}</span>` : ''}
+          </div>
+          <div class="card-sub">
+            <span>${item.user}</span>
+            ${statusBadge}
+          </div>
+          <div class="card-actions">
+            <button class="action-btn btn-primary" onclick="startEdit(${item.id})">✏️</button>
+            <button class="action-btn btn-danger" onclick="deleteItem(${item.id})">🗑️</button>
+          </div>
+        `;
+        listVisual.appendChild(card);
+      });
+
+      totalCountSpan.textContent = registryItems.length;
+      generateOutput();
+    }
+
+    // --- CRUD ---
+    function startEdit(id) {
+      const item = registryItems.find(i => i.id === id);
+      if (!item) return;
+
+      editName.value = item.name;
+      editCount.value = item.count;
+      editStatus.value = item.status;
+      editUser.value = item.user;
+      editLink.value = item.link;
+      editIdField.value = item.id;
+      
+      editingId = id;
+      addUpdateBtn.textContent = "Salvar Alteração";
+      addUpdateBtn.classList.remove('btn-primary');
+      addUpdateBtn.classList.add('btn-success');
+      editName.focus();
+      renderList();
+    }
+
+    function saveItem() {
+      const name = editName.value.trim();
+      if (!name) return alert("O nome é obrigatório!");
+
+      const newItem = {
+        id: editIdField.value ? parseFloat(editIdField.value) : Date.now(),
+        name: name,
+        count: editCount.value.trim(),
+        status: editStatus.value,
+        user: editUser.value.trim(),
+        link: editLink.value.trim() || '#'
+      };
+
+      if (editingId) {
+        const index = registryItems.findIndex(i => i.id === editingId);
+        if (index !== -1) registryItems[index] = newItem;
+        editingId = null;
+        addUpdateBtn.textContent = "Adicionar";
+        addUpdateBtn.classList.add('btn-primary');
+        addUpdateBtn.classList.remove('btn-success');
+      } else {
+        registryItems.push(newItem);
+      }
+
+      editName.value = '';
+      editCount.value = '';
+      editStatus.value = '';
+      editUser.value = '';
+      editLink.value = '';
+      editIdField.value = '';
+      
+      renderList();
+    }
+
+    window.deleteItem = function(id) {
+      if(confirm("Tem certeza que deseja remover este item?")) {
+        registryItems = registryItems.filter(i => i.id !== id);
+        renderList();
+      }
+    }
+
+    // --- GERADOR DE HTML ---
+    function generateOutput() {
+      const sortedItems = [...registryItems].sort((a, b) => a.name.localeCompare(b.name));
+      
+      let rulesHTML = '';
+      let title = '';
+      let requestTitle = '';
+      let requestCode = '';
+
+      if (currentMode === 'pp') {
+        title = 'Registro de Photoplayer';
+        requestTitle = 'Faça seu Registro';
+        // [CORRIGIDO] Regras exatas solicitadas para PP
+        rulesHTML = `<div class="jjk-registry-rules"><h4>Regras</h4><ul><li><b>Mídia Permitida:</b> Aceitamos apenas personagens fictícios (Animes, Mangás, Jogos, HQs, etc). Photoplayers de pessoas reais (Live Action/Celebridades) são proibidos.</li><li><b>Duplicatas e Gêmeos:</b> Respeite as vagas preenchidas. Caso seu personagem seja gêmeo de outro já existente, isso deve ser sinalizado no registro e estar pré-acordado entre as partes.</li><li><b>Ausência (Perda de PP):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito de reserva e o Photoplayer poderá ser liberado.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir o PP de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Um PP fica "reservado" por até 7 dias após a solicitação, tempo onde a ficha precisa ser postada para avaliação. Esse prazo reseta após cada correção apontada na ficha.</li><li><b>Hiatos:</b> Jogadores em hiato justificados ficam isentos de roubo. Após o final dos dias de ausencia, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
+        requestCode = `[b]Nome do Photoplayer:[/b] Nome do Anime/Manga\n[b]Nome do Personagem:[/b] Nome da sua Ficha\n[b]Link da Ficha:[/b] URL`;
+      } else {
+        title = 'Registro de Técnicas';
+        requestTitle = 'Solicitação de Técnica';
+        // [CORRIGIDO] Regras exatas solicitadas para Técnicas
+        rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Registro</h4><ul><li><b>Tipos de Técnica:</b> Registramos aqui tanto <b>Técnicas Inatas</b> (criadas por jogadores) quanto <b>Técnicas Canônicas</b>.</li><li><b>Vagas e Unicidade:</b> Técnicas Inatas de OCs são consideradas únicas. Técnicas Canônicas possuem um limite rígido de usuários simultâneos.</li><li><b>Ausência (Perda da Vaga):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito à reserva da técnica (Canônicas e OC's) e a vaga será liberada.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir uma técnica canônica de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Uma técnica pode ser reservada após atingir todos os requisitos de uso e fazer a solicitação da quest, tendo o jogador <b>7 dias</b> de prazo. Caso seja uma quest Narrada, o prazo conta após cada post do Mestre.</li><li><b>Hiatos:</b> Jogadores com hiatos justificados ficam isentos de perda da vaga. Após o final dos dias de ausência, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
+        requestCode = `[b]Nome da Técnica:[/b] Nome da Técnica\n[b]Vagas Ocupadas:[/b] 0/1\n[b]Link da Ficha:[/b] URL`;
+      }
+
+      let listHTML = '';
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      let itemIndex = 0;
+
+      alphabet.forEach(letter => {
+        listHTML += `<div class="jjk-reg-letter">${letter}</div>`;
+        
+        while(itemIndex < sortedItems.length) {
+          const item = sortedItems[itemIndex];
+          const firstChar = item.name.trim().charAt(0).toUpperCase();
+          
+          // Inclui itens que começam com a letra e também números/símbolos na letra A
+          if ((firstChar < letter && letter === 'A') || firstChar === letter) {
+             listHTML += buildItemHTML(item);
+             itemIndex++;
+          } else {
+            break;
+          }
+        }
+      });
+
+      const finalHTML = `<link href="https://gaaaaaaaaabs.github.io/goldenagerepositor.io/registro.css" rel="stylesheet" type="text/css"><div class="jjk-registry-container"><div class="jjk-registry-title">${title}</div>${rulesHTML}<div class="jjk-registry-list">${listHTML}</div><div class="jjk-request-section"><div class="jjk-request-title">${requestTitle}</div><div style="margin-bottom: 10px; font-size: 0.9em; color: #a0a0a0;">Copie o código abaixo e responda ao tópico:</div><textarea class="jjk-copy-area" readonly onclick="this.select();">${requestCode}</textarea></div></div>`;
+
+      // MINIFICAÇÃO (Linha Única)
+      const singleLineHTML = finalHTML
+        .replace(/(\r\n|\n|\r)/gm, "")
+        .replace(/\s+/g, ' ')
+        .replace(/> </g, '><')
+        .trim();
+
+      outputText.value = singleLineHTML;
+    }
+
+    function buildItemHTML(item) {
+      const userDisplay = (item.link && item.link !== '#') 
+        ? `<a href="${item.link}">${item.user}</a>` 
+        : item.user;
+
+      if (currentMode === 'pp') {
+        return `<div class="jjk-reg-item"><div class="jjk-reg-info"><span class="jjk-reg-name">${item.name}</span></div><div class="jjk-reg-users">${userDisplay}</div></div>`;
+      } else {
+        return `<div class="jjk-reg-item ${item.status || ''}"><div class="jjk-reg-info"><span class="jjk-reg-name">${item.name}</span><span class="jjk-reg-count">${item.count}</span></div><div class="jjk-reg-users">${userDisplay}</div></div>`;
+      }
+    }
+
+    // --- LISTENERS ---
+    typeSelect.addEventListener('change', (e) => {
+      currentMode = e.target.value;
+      const techFields = document.querySelectorAll('.tech-only');
+      
+      // Instruções Dinâmicas
+      if(currentMode === 'pp') {
+        techFields.forEach(el => el.classList.add('hidden'));
+        editName.placeholder = "Ex: Gojo Satoru (Jujutsu Kaisen)";
+        labelName.textContent = "Nome (Personagem e Obra entre parênteses)";
+      } else {
+        techFields.forEach(el => el.classList.remove('hidden'));
+        editName.placeholder = "Ex: Ilimitado (Mukagen)";
+        labelName.textContent = "Nome (Técnica e Romaji entre parênteses)";
+      }
+      renderList();
+    });
+
+    importBtn.addEventListener('click', () => {
+      const html = importText.value;
+      if (!html) return alert("Cole o código HTML primeiro!");
+      const items = parseHTML(html);
+      if (items.length === 0) return alert("Nenhum item encontrado.");
+      registryItems = items;
+      renderList();
+      alert(`${items.length} itens carregados!`);
+    });
+
+    addUpdateBtn.addEventListener('click', saveItem);
+    searchBar.addEventListener('input', renderList);
+
+    copyBtn.addEventListener('click', () => {
+      outputText.select();
+      document.execCommand('copy');
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = "Copiado!";
+      setTimeout(() => copyBtn.textContent = originalText, 2000);
+    });
+
+    clearAllBtn.addEventListener('click', () => {
+      if(confirm("Isso vai apagar toda a lista da memória. Tem certeza?")) {
+        registryItems = [];
+        renderList();
+      }
+    });
+
+    typeSelect.dispatchEvent(new Event('change'));
+  </script>
+</body>
+</html>
