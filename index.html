@@ -230,8 +230,8 @@
       <div class="magic-title">🪄 Processador de Pedidos</div>
       <p style="font-size:0.9em; margin-bottom:10px; color:var(--text-dim);">Cole o pedido que o jogador postou no fórum (o texto puro) e clique em "Ler".</p>
       <div style="display:flex; gap:10px; align-items: flex-start;">
-        <textarea id="magic-input" style="height:80px; margin-bottom:0;" placeholder="Cole o pedido do jogador aqui..."></textarea>
-        <button class="btn-primary" style="height:80px;" onclick="parseRequest()">Ler</button>
+        <textarea id="magic-input" style="height:120px; margin-bottom:0;" placeholder="Cole o pedido do jogador aqui..."></textarea>
+        <button class="btn-primary" style="height:120px;" onclick="parseRequest()">Ler</button>
       </div>
     </div>
 
@@ -312,42 +312,65 @@
     const editIdField = document.getElementById('edit-id');
     const magicInput = document.getElementById('magic-input');
 
-    // --- PROCESSADOR MÁGICO (SIMPLIFICADO) ---
+    // --- PROCESSADOR MÁGICO (PARSER DE PEDIDOS) ---
     function parseRequest() {
       let text = magicInput.value;
       if (!text) return alert("Cole o pedido do jogador primeiro.");
 
-      // 1. Limpa BBCode que possa ter sobrado (remove [b], [/b], [code] etc)
+      // 1. Limpa BBCode que possa ter sobrado
       text = text.replace(/\[\/?[^\]]+\]/g, ''); 
       
-      // 2. Divide por linhas para analisar
+      // 2. Divide por linhas
       const lines = text.split('\n');
       
       let nameVal = '';
+      let ppVal = '';
+      let obraVal = '';
       let userVal = '';
       let linkVal = '';
       let countVal = '';
 
       lines.forEach(line => {
-        // Normaliza a linha
         const cleanLine = line.trim();
         
-        // Procura por chaves comuns (case insensitive)
-        if (cleanLine.match(/^(Nome|Photoplayer|Técnica|Particularidade).*?:/i)) {
-          nameVal = cleanLine.split(':')[1].trim();
+        // Regex para os campos específicos
+        if (cleanLine.match(/^(Nome do Photoplayer|Photoplayer):\s*(.*)/i)) {
+            ppVal = cleanLine.split(':')[1].trim();
         }
-        if (cleanLine.match(/^(Usuário|Personagem|Nome do Personagem).*?:/i)) {
-          userVal = cleanLine.split(':')[1].trim();
+        if (cleanLine.match(/^(Obra|Anime|Manga|Origem):\s*(.*)/i)) {
+            obraVal = cleanLine.split(':')[1].trim();
         }
-        if (cleanLine.match(/^(Link|Link da Ficha).*?:/i)) {
-          linkVal = cleanLine.split(':')[1].trim();
+        if (cleanLine.match(/^(Nome da Técnica|Nome da Particularidade|Nome):\s*(.*)/i)) {
+            // Se for PP, esse "Nome" pode ser ignorado se tiver Photoplayer. 
+            // Se for Tech/Part, esse é o nome principal.
+            nameVal = cleanLine.split(':')[1].trim();
         }
-        if (cleanLine.match(/^(Vagas|Vagas Ocupadas).*?:/i)) {
-          countVal = cleanLine.split(':')[1].trim();
+        if (cleanLine.match(/^(Nome do Personagem|Personagem|Usuário):\s*(.*)/i)) {
+            userVal = cleanLine.split(':')[1].trim();
+        }
+        if (cleanLine.match(/^(Link|Link da Ficha):\s*(.*)/i)) {
+            linkVal = cleanLine.split(':')[1].trim();
+        }
+        if (cleanLine.match(/^(Vagas|Vagas Ocupadas):\s*(.*)/i)) {
+            countVal = cleanLine.split(':')[1].trim();
         }
       });
 
-      if (nameVal) editName.value = nameVal;
+      // Lógica de Preenchimento baseada no Modo
+      if (currentMode === 'pp') {
+          // No modo PP, o nome do registro é "Photoplayer (Obra)"
+          if (ppVal && obraVal) {
+              editName.value = `${ppVal} (${obraVal})`;
+          } else if (ppVal) {
+              editName.value = ppVal;
+          } else {
+              editName.value = nameVal; // Fallback
+          }
+      } else {
+          // Nos outros modos, é o nome direto
+          editName.value = nameVal;
+      }
+
       if (userVal) editUser.value = userVal;
       if (linkVal) editLink.value = linkVal;
       if (countVal) editCount.value = countVal;
@@ -516,20 +539,20 @@
         title = 'Registro de Photoplayer';
         requestTitle = 'Faça seu Registro';
         rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Uso</h4><ul><li><b>Mídia Permitida:</b> Aceitamos apenas personagens fictícios (Animes, Mangás, Jogos, HQs, etc). Photoplayers de pessoas reais (Live Action/Celebridades) são proibidos, assim como personagens canônicos de Jujutsu Kaisen.</li><li><b>Duplicatas e Gêmeos:</b> Respeite as vagas preenchidas. Caso seu personagem seja gêmeo de outro já existente, isso deve ser sinalizado no registro e estar pré-acordado entre as partes.</li><li><b>Ausência (Perda de PP):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito de reserva e o Photoplayer poderá ser liberado.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir o PP de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Um PP fica "reservado" por até 7 dias após a solicitação, tempo onde a ficha precisa ser postada para avaliação. Esse prazo reseta após cada correção apontada na ficha.</li><li><b>Hiatos:</b> Jogadores em hiato justificados ficam isentos de roubo. Após o final dos dias de ausencia, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
-        // FORMULÁRIO SIMPLIFICADO (TEXTO PURO)
-        requestCode = `Nome do Photoplayer: Nome do Anime/Manga\nNome do Personagem: Nome da sua Ficha\nLink da Ficha: URL`;
+        // [CORRIGIDO] Formato Limpo para o Jogador
+        requestCode = `Nome do Photoplayer: \nObra: \nNome do Personagem: \nLink da Ficha: `;
       
       } else if (currentMode === 'tech') {
         title = 'Registro de Técnicas';
         requestTitle = 'Solicitação de Técnica';
         rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Registro</h4><ul><li><b>Tipos de Técnica:</b> Registramos aqui tanto <b>Técnicas Inatas</b> (criadas por jogadores) quanto <b>Técnicas Canônicas</b>.</li><li><b>Vagas e Unicidade:</b> Técnicas Inatas de OCs são consideradas únicas. Técnicas Canônicas possuem um limite rígido de usuários simultâneos.</li><li><b>Ausência (Perda da Vaga):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito à reserva da técnica (Canônicas e OC's) e a vaga será liberada.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir uma técnica canônica de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Uma técnica pode ser reservada após atingir todos os requisitos de uso e fazer a solicitação da quest, tendo o jogador <b>7 dias</b> de prazo. Caso seja uma quest Narrada, o prazo conta após cada post do Mestre.</li><li><b>Hiatos:</b> Jogadores com hiatos justificados ficam isentos de perda da vaga. Após o final dos dias de ausência, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
-        requestCode = `Nome da Técnica: Nome da Técnica\nVagas Ocupadas: 0/1\nLink da Ficha: URL`;
+        requestCode = `Nome da Técnica: \nVagas Ocupadas: \nLink da Ficha: `;
       
       } else if (currentMode === 'part') {
         title = 'Registro de Particularidades';
         requestTitle = 'Solicitação de Particularidade';
         rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Registro</h4><ul><li><b>Definição:</b> Particularidades são traços únicos de nascimento ou condições especiais.</li><li><b>Vagas:</b> A maioria das Particularidades possui um limite rígido de usuários simultâneos para manter o equilíbrio do RPG.</li><li><b>Unicidade:</b> Um personagem geralmente só pode possuir <b>uma</b> Particularidade, salvo exceções de enredo muito específicas.</li><li><b>Ausência:</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito à reserva da Particularidade.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir uma vaga ocupada por um jogador ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> O prazo de reserva é de <b>7 dias</b> para a postagem da ficha.</li></ul></div>`;
-        requestCode = `Nome da Particularidade: Nome da Particularidade\nVagas Ocupadas: 0/1\nLink da Ficha: URL`;
+        requestCode = `Nome da Particularidade: \nVagas Ocupadas: \nLink da Ficha: `;
       }
 
       let listHTML = '';
