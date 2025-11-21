@@ -157,8 +157,8 @@
       <div class="magic-title">🪄 Processador de Pedidos</div>
       <p style="font-size:0.9em; margin-bottom:10px; color:var(--text-dim);">Cole o pedido que o jogador postou no fórum (texto puro) e clique em "Ler".</p>
       <div style="display:flex; gap:10px; align-items: flex-start;">
-        <textarea id="magic-input" style="height:120px; margin-bottom:0;" placeholder="Cole o pedido do jogador aqui..."></textarea>
-        <button class="btn-primary" style="height:120px;" onclick="parseRequest()">Ler</button>
+        <textarea id="magic-input" style="height:100px; margin-bottom:0;" placeholder="Cole o pedido do jogador aqui..."></textarea>
+        <button class="btn-primary" style="height:100px;" onclick="parseRequest()">Ler</button>
       </div>
     </div>
 
@@ -239,17 +239,15 @@
     const editIdField = document.getElementById('edit-id');
     const magicInput = document.getElementById('magic-input');
 
-    // --- PROCESSADOR MÁGICO CORRIGIDO ---
+    // --- PROCESSADOR MÁGICO (PARSER DE PEDIDOS) ---
     function parseRequest() {
       let text = magicInput.value;
       if (!text) return alert("Cole o pedido do jogador primeiro.");
 
-      // 1. Limpa BBCode e Tags HTML residuais
+      // 1. Limpa BBCode e HTML
       text = text.replace(/\[\/?[^\]]+\]/g, '').replace(/<[^>]*>/g, '');
 
-      // 2. Normaliza para garantir que palavras-chave estejam no início de linhas
-      // Isso resolve o problema de "tudo na mesma linha"
-      // Substitui "PalavraChave:" por "\nPalavraChave:" para forçar quebra
+      // 2. Força quebra de linha em chaves conhecidas para evitar leitura em linha única
       text = text.replace(/(Obra:|Nome do Personagem:|Link da Ficha:|Link:|Vagas:|Vagas Ocupadas:)/gi, '\n$1');
       
       const lines = text.split('\n');
@@ -265,7 +263,6 @@
         const cleanLine = line.trim();
         if (!cleanLine) return;
 
-        // Helper para pegar valor após o dois-pontos (CORRIGIDO PARA LINKS)
         const extractValue = (str) => {
             const colonIndex = str.indexOf(':');
             if (colonIndex === -1) return '';
@@ -279,7 +276,7 @@
             obraVal = extractValue(cleanLine);
         }
         else if (cleanLine.match(/^(Nome da Técnica|Nome da Particularidade|Nome):/i)) {
-            // Prioridade menor se já tiver PP, mas serve para Tech/Part
+            // Se não for PP, pega o nome principal
             if (!ppVal) nameVal = extractValue(cleanLine);
         }
         else if (cleanLine.match(/^(Nome do Personagem|Personagem|Usuário):/i)) {
@@ -319,7 +316,6 @@
         }
       }
 
-      // Feedback Visual
       magicInput.style.borderColor = "var(--success)";
       setTimeout(() => magicInput.style.borderColor = "var(--accent)", 500);
       magicInput.value = ""; 
@@ -444,7 +440,6 @@
         registryItems.push(newItem);
       }
 
-      // Limpa form
       editName.value = '';
       editCount.value = '';
       editStatus.value = '';
@@ -475,20 +470,22 @@
         title = 'Registro de Photoplayer';
         requestTitle = 'Faça seu Registro';
         rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Uso</h4><ul><li><b>Mídia Permitida:</b> Aceitamos apenas personagens fictícios (Animes, Mangás, Jogos, HQs, etc). Photoplayers de pessoas reais (Live Action/Celebridades) são proibidos, assim como personagens canônicos de Jujutsu Kaisen.</li><li><b>Duplicatas e Gêmeos:</b> Respeite as vagas preenchidas. Caso seu personagem seja gêmeo de outro já existente, isso deve ser sinalizado no registro e estar pré-acordado entre as partes.</li><li><b>Ausência (Perda de PP):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito de reserva e o Photoplayer poderá ser liberado.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir o PP de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Um PP fica "reservado" por até 7 dias após a solicitação, tempo onde a ficha precisa ser postada para avaliação. Esse prazo reseta após cada correção apontada na ficha.</li><li><b>Hiatos:</b> Jogadores em hiato justificados ficam isentos de roubo. Após o final dos dias de ausencia, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
-        // [CORRIGIDO] Formato com Quebras de Linha para o Jogador Copiar
-        requestCode = `Nome do Photoplayer:\nObra:\nNome do Personagem:\nLink da Ficha:`;
+        // [CORRIGIDO] Formato Limpo e Correto para PP
+        requestCode = `Nome do Photoplayer: Nome do Anime/Manga\nNome do Personagem: Nome da sua Ficha\nLink da Ficha: URL`;
       
       } else if (currentMode === 'tech') {
         title = 'Registro de Técnicas';
         requestTitle = 'Solicitação de Técnica';
         rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Registro</h4><ul><li><b>Tipos de Técnica:</b> Registramos aqui tanto <b>Técnicas Inatas</b> (criadas por jogadores) quanto <b>Técnicas Canônicas</b>.</li><li><b>Vagas e Unicidade:</b> Técnicas Inatas de OCs são consideradas únicas. Técnicas Canônicas possuem um limite rígido de usuários simultâneos.</li><li><b>Ausência (Perda da Vaga):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito à reserva da técnica (Canônicas e OC's) e a vaga será liberada.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir uma técnica canônica de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Uma técnica pode ser reservada após atingir todos os requisitos de uso e fazer a solicitação da quest, tendo o jogador <b>7 dias</b> de prazo. Caso seja uma quest Narrada, o prazo conta após cada post do Mestre.</li><li><b>Hiatos:</b> Jogadores com hiatos justificados ficam isentos de perda da vaga. Após o final dos dias de ausência, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
-        requestCode = `Nome da Técnica:\nVagas Ocupadas: 0/1\nLink da Ficha:`;
+        // [CORRIGIDO] Formato Limpo para Tech (inclui Nome do Personagem)
+        requestCode = `Nome da Técnica: Nome da Técnica\nNome do Personagem: Nome do Personagem\nVagas Ocupadas: 0/1\nLink da Ficha: URL`;
       
       } else if (currentMode === 'part') {
         title = 'Registro de Particularidades';
         requestTitle = 'Solicitação de Particularidade';
         rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Registro</h4><ul><li><b>Definição:</b> Particularidades são traços únicos de nascimento ou condições especiais.</li><li><b>Vagas:</b> A maioria das Particularidades possui um limite rígido de usuários simultâneos para manter o equilíbrio do RPG.</li><li><b>Unicidade:</b> Um personagem geralmente só pode possuir <b>uma</b> Particularidade, salvo exceções de enredo muito específicas.</li><li><b>Ausência:</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito à reserva da Particularidade.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir uma vaga ocupada por um jogador ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> O prazo de reserva é de <b>7 dias</b> para a postagem da ficha.</li></ul></div>`;
-        requestCode = `Nome da Particularidade:\nVagas Ocupadas: 0/1\nLink da Ficha:`;
+        // [CORRIGIDO] Formato Limpo para Part (inclui Nome do Personagem)
+        requestCode = `Nome da Particularidade: Nome da Particularidade\nNome do Personagem: Nome do Personagem\nVagas Ocupadas: 0/1\nLink da Ficha: URL`;
       }
 
       let listHTML = '';
