@@ -107,10 +107,20 @@
       margin-bottom: 10px;
     }
 
+    /* --- Processador Mágico --- */
+    .magic-processor {
+      background: linear-gradient(135deg, rgba(109, 32, 197, 0.1), rgba(32, 197, 109, 0.05));
+      border: 1px solid var(--accent);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .magic-title { color: var(--accent); font-weight: 900; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+
     /* --- Editor --- */
     .editor-form {
       background-color: var(--panel);
-      border: 1px solid var(--accent);
+      border: 1px solid var(--border);
       padding: 20px;
       border-radius: 8px;
       margin-bottom: 30px;
@@ -209,12 +219,22 @@
     </div>
 
     <div class="import-area">
-      <h3>1. Importar Código Existente</h3>
-      <textarea id="import-code" placeholder="Cole aqui o código HTML inteiro do post de registros (desde o <link> até o final)..."></textarea>
-      <button class="btn-warn" id="btn-import">Ler e Carregar Lista</button>
+      <h3>1. Importar Lista Atual (Do Tópico)</h3>
+      <textarea id="import-code" placeholder="Cole aqui o código HTML inteiro do seu tópico de registros..."></textarea>
+      <button class="btn-warn" id="btn-import">Carregar Lista</button>
     </div>
 
     <h3>2. Gerenciar Lista</h3>
+
+    <div class="magic-processor">
+      <div class="magic-title">🪄 Processador de Pedidos</div>
+      <p style="font-size:0.9em; margin-bottom:10px; color:var(--text-dim);">Cole o pedido que o jogador postou no fórum e clique em "Ler". O sistema preencherá o formulário abaixo automaticamente.</p>
+      <div style="display:flex; gap:10px; align-items: flex-start;">
+        <textarea id="magic-input" style="height:60px; margin-bottom:0;" placeholder="Ex: [b]Nome:[/b] Gojo [b]Link:[/b] ..."></textarea>
+        <button class="btn-primary" style="height:60px;" onclick="parseRequest()">Ler</button>
+      </div>
+    </div>
+
     <div class="editor-form">
       <div class="form-group">
         <label id="label-name">Nome (Personagem)</label>
@@ -244,7 +264,7 @@
       </div>
       
       <div class="form-group">
-        <button class="btn-primary" id="btn-add-update">Adicionar</button>
+        <button class="btn-success" id="btn-add-update">Adicionar à Lista</button>
       </div>
       <input type="hidden" id="edit-id">
     </div>
@@ -292,7 +312,48 @@
     const editLink = document.getElementById('edit-link');
     const editIdField = document.getElementById('edit-id');
 
-    // --- PARSE ---
+    // Magic Input
+    const magicInput = document.getElementById('magic-input');
+
+    // --- PROCESSADOR MÁGICO (PARSER DE PEDIDOS) ---
+    function parseRequest() {
+      const text = magicInput.value;
+      if (!text) return alert("Cole o pedido do jogador primeiro.");
+
+      // Regex flexível para capturar valores após as tags [b]...[/b]
+      // Captura tudo até a próxima quebra de linha ou próxima tag
+      const nameRegex = /\[b\](?:Nome.*?):\s*\[\/b\]\s*(.*?)(?=\[b\]|$|\n)/i;
+      const userRegex = /\[b\](?:Nome do Personagem.*?):\s*\[\/b\]\s*(.*?)(?=\[b\]|$|\n)/i;
+      const linkRegex = /\[b\](?:Link.*?):\s*\[\/b\]\s*(.*?)(?=\[b\]|$|\n)/i;
+      const countRegex = /\[b\](?:Vagas.*?):\s*\[\/b\]\s*(.*?)(?=\[b\]|$|\n)/i;
+
+      const nameMatch = text.match(nameRegex);
+      const userMatch = text.match(userRegex);
+      const linkMatch = text.match(linkRegex);
+      const countMatch = text.match(countRegex);
+
+      if (nameMatch) editName.value = nameMatch[1].trim();
+      if (userMatch) editUser.value = userMatch[1].trim();
+      if (linkMatch) editLink.value = linkMatch[1].trim();
+      if (countMatch) editCount.value = countMatch[1].trim();
+
+      // Tenta adivinhar o status baseado nas vagas (se houver)
+      if (editCount.value) {
+        const parts = editCount.value.split('/');
+        if (parts.length === 2) {
+          if (parts[0].trim() === parts[1].trim()) editStatus.value = 'is-full';
+          else editStatus.value = 'is-open';
+        }
+      }
+
+      // Efeito visual de sucesso
+      magicInput.style.borderColor = "var(--success)";
+      setTimeout(() => magicInput.style.borderColor = "var(--accent)", 500);
+      magicInput.value = ""; // Limpa
+      editName.focus(); // Foca no formulário para conferência
+    }
+
+    // --- PARSE HTML (IMPORTAÇÃO) ---
     function parseHTML(html) {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
@@ -339,7 +400,6 @@
         card.className = `reg-card ${editingId === item.id ? 'editing' : ''}`;
         
         let statusBadge = '';
-        // Mostra badge se for Tech OU Part
         if (currentMode !== 'pp') {
            if (item.status === 'is-open') statusBadge = '<span class="tag-status tag-open">Livre</span>';
            else if (item.status === 'is-full') statusBadge = '<span class="tag-status tag-full">Cheio</span>';
@@ -381,8 +441,8 @@
       
       editingId = id;
       addUpdateBtn.textContent = "Salvar Alteração";
-      addUpdateBtn.classList.remove('btn-primary');
-      addUpdateBtn.classList.add('btn-success');
+      addUpdateBtn.classList.remove('btn-success');
+      addUpdateBtn.classList.add('btn-warn');
       editName.focus();
       renderList();
     }
@@ -404,13 +464,14 @@
         const index = registryItems.findIndex(i => i.id === editingId);
         if (index !== -1) registryItems[index] = newItem;
         editingId = null;
-        addUpdateBtn.textContent = "Adicionar";
-        addUpdateBtn.classList.add('btn-primary');
-        addUpdateBtn.classList.remove('btn-success');
+        addUpdateBtn.textContent = "Adicionar à Lista";
+        addUpdateBtn.classList.add('btn-success');
+        addUpdateBtn.classList.remove('btn-warn');
       } else {
         registryItems.push(newItem);
       }
 
+      // Limpa form
       editName.value = '';
       editCount.value = '';
       editStatus.value = '';
@@ -437,10 +498,11 @@
       let requestTitle = '';
       let requestCode = '';
 
+      // Regras conforme especificado
       if (currentMode === 'pp') {
         title = 'Registro de Photoplayer';
         requestTitle = 'Faça seu Registro';
-        rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Uso</h4><ul><li><b>Mídia Permitida:</b> Aceitamos apenas personagens fictícios (Animes, Mangás, Jogos, HQs, etc). Photoplayers de pessoas reais (Live Action/Celebridades) são proibidos, assim como de personagens canonicos do anime e mangá de Jujutsu.</li><li><b>Duplicatas e Gêmeos:</b> Respeite as vagas preenchidas. Caso seu personagem seja gêmeo de outro já existente, isso deve ser sinalizado no registro e estar pré-acordado entre as partes.</li><li><b>Ausência (Perda de PP):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito de reserva e o Photoplayer poderá ser liberado.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir o PP de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Um PP fica "reservado" por até 7 dias após a solicitação, tempo onde a ficha precisa ser postada para avaliação. Esse prazo reseta após cada correção apontada na ficha.</li><li><b>Hiatos:</b> Jogadores em hiato justificados ficam isentos de roubo. Após o final dos dias de ausencia, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
+        rulesHTML = `<div class="jjk-registry-rules"><h4>Regras de Uso</h4><ul><li><b>Mídia Permitida:</b> Aceitamos apenas personagens fictícios (Animes, Mangás, Jogos, HQs, etc). Photoplayers de pessoas reais (Live Action/Celebridades) são proibidos.</li><li><b>Duplicatas e Gêmeos:</b> Respeite as vagas preenchidas. Caso seu personagem seja gêmeo de outro já existente, isso deve ser sinalizado no registro e estar pré-acordado entre as partes.</li><li><b>Ausência (Perda de PP):</b> Jogadores ausentes sem justificativa por <b>14 dias</b> ou mais perderão o direito de reserva e o Photoplayer poderá ser liberado.</li><li><b>Reivindicação ("Roubo"):</b> Para assumir o PP de um jogador considerado ausente, o solicitante deve ter sua ficha aprovada e ativa no fórum há, no mínimo, <b>45 dias</b>.</li><li><b>Reservas:</b> Um PP fica "reservado" por até 7 dias após a solicitação, tempo onde a ficha precisa ser postada para avaliação. Esse prazo reseta após cada correção apontada na ficha.</li><li><b>Hiatos:</b> Jogadores em hiato justificados ficam isentos de roubo. Após o final dos dias de ausencia, a contagem dos 14 dias continua do momento onde parou.</li></ul></div>`;
         requestCode = `[b]Nome do Photoplayer:[/b] Nome do Anime/Manga\n[b]Nome do Personagem:[/b] Nome da sua Ficha\n[b]Link da Ficha:[/b] URL`;
       } else if (currentMode === 'tech') {
         title = 'Registro de Técnicas';
@@ -456,13 +518,11 @@
 
       let listHTML = '';
       
-      // [LÓGICA ALTERADA] Se for Particularidade, lista direto sem letras
       if (currentMode === 'part') {
         sortedItems.forEach(item => {
           listHTML += buildItemHTML(item);
         });
       } else {
-        // Se for PP ou Tech, usa as letras
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
         let itemIndex = 0;
 
@@ -485,7 +545,7 @@
 
       const finalHTML = `<link href="https://gaaaaaaaaabs.github.io/goldenagerepositor.io/registro.css" rel="stylesheet" type="text/css"><div class="jjk-registry-container"><div class="jjk-registry-title">${title}</div>${rulesHTML}<div class="jjk-registry-list">${listHTML}</div><div class="jjk-request-section"><div class="jjk-request-title">${requestTitle}</div><div style="margin-bottom: 10px; font-size: 0.9em; color: #a0a0a0;">Copie o código abaixo e responda ao tópico:</div><textarea class="jjk-copy-area" readonly onclick="this.select();">${requestCode}</textarea></div></div>`;
 
-      // MINIFICAÇÃO
+      // Minificação
       const singleLineHTML = finalHTML
         .replace(/(\r\n|\n|\r)/gm, "")
         .replace(/\s+/g, ' ')
@@ -560,4 +620,3 @@
   </script>
 </body>
 </html>
-
