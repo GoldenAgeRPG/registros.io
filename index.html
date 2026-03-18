@@ -140,6 +140,7 @@
           <option value="part">Registro de Particularidades</option>
           <option value="clan">Registro de Clãs</option>
           <option value="school">Censo Escolar</option>
+          <option value="faction">Registro de Facções</option>
         </select>
       </div>
       <div class="stats">
@@ -166,7 +167,7 @@
 
     <div class="editor-form">
       <div class="form-group special-only hidden">
-        <label id="label-extra-1">Grupo (Clã/Escola)</label>
+        <label id="label-extra-1">Grupo (Clã/Escola/Facção)</label>
         <select id="edit-extra-1"></select>
       </div>
       <div class="form-group special-only hidden">
@@ -272,6 +273,10 @@
         {val: '2ano', label: '2º Ano', limit: 3},
         {val: '3ano', label: '3º Ano', limit: 3}
     ];
+    const FACTIONS = [
+        {val: 'tokyo', label: 'Legalistas', icon: '⚖️'},
+        {val: 'kyoto', label: 'Pentarquia', icon: '👑'}
+    ];
 
     // --- PARSER ---
     function parseRequest() {
@@ -279,10 +284,10 @@
       if (!text) return alert("Cole o pedido primeiro.");
 
       text = text.replace(/\[\/?[^\]]+\]/g, '').replace(/<[^>]*>/g, '');
-      text = text.replace(/(Obra:|Nome do Personagem:|Link da Ficha:|Link:|Vagas:|Vagas Ocupadas:|Clã:|Linhagem:|Escola:|Ano\/Cargo:|Ficha:)/gi, '\n$1');
+      text = text.replace(/(Obra:|Nome do Personagem:|Link da Ficha:|Link:|Vagas:|Vagas Ocupadas:|Clã:|Linhagem:|Escola:|Ano\/Cargo:|Ficha:|Facção Escolhida:|Facção:|Link do RP de Entrada:|RP de Entrada:|RP:)/gi, '\n$1');
       
       const lines = text.split('\n');
-      let data = {name:'', pp:'', obra:'', user:'', link:'', count:'', clan:'', lineage:'', school:'', grade:''};
+      let data = {name:'', pp:'', obra:'', user:'', link:'', count:'', clan:'', lineage:'', school:'', grade:'', faction:''};
 
       lines.forEach(line => {
         const cleanLine = line.trim();
@@ -304,6 +309,7 @@
         else if (cleanLine.match(/^(Linhagem):/i)) data.lineage = val(cleanLine);
         else if (cleanLine.match(/^(Escola):/i)) data.school = val(cleanLine);
         else if (cleanLine.match(/^(Ano\/Cargo|Ano|Cargo):/i)) data.grade = val(cleanLine);
+        else if (cleanLine.match(/^(Facção Escolhida|Facção):/i)) data.faction = val(cleanLine);
       });
 
       // Aplicação dos dados
@@ -335,6 +341,11 @@
         }
       }
 
+      if (currentMode === 'faction' && data.faction) {
+        if(data.faction.toLowerCase().includes('legalista')) editExtra1.value = 'tokyo';
+        if(data.faction.toLowerCase().includes('pentarquia')) editExtra1.value = 'kyoto';
+      }
+
       magicInput.value = ""; 
       editName.focus();
     }
@@ -345,17 +356,18 @@
       const doc = parser.parseFromString(html, 'text/html');
       const items = [];
 
-      // Modos Complexos (Clã/Escola)
-      if (currentMode === 'clan' || currentMode === 'school') {
+      // Modos Complexos (Clã/Escola/Facção)
+      if (currentMode === 'clan' || currentMode === 'school' || currentMode === 'faction') {
          const columns = doc.querySelectorAll('.school-column');
          
          columns.forEach(col => {
              let groupKey = '';
-             // Tenta identificar o grupo pela classe
              if(currentMode === 'clan') {
                  CLANS.forEach(c => { if(col.classList.contains(c.val)) groupKey = c.val; });
-             } else {
+             } else if(currentMode === 'school') {
                  SCHOOLS.forEach(s => { if(col.classList.contains(s.val)) groupKey = s.val; });
+             } else {
+                 FACTIONS.forEach(f => { if(col.classList.contains(f.val)) groupKey = f.val; });
              }
              if(!groupKey) return; 
 
@@ -366,22 +378,21 @@
 
                  if (currentMode === 'clan') {
                      subKey = title.includes('principal') ? 'Principal' : 'Secundária';
-                 } else {
+                 } else if(currentMode === 'school') {
                      if(title.includes('1º')) subKey = '1ano';
                      else if(title.includes('2º')) subKey = '2ano';
                      else if(title.includes('3º')) subKey = '3ano';
                      else subKey = 'adm';
+                 } else {
+                     subKey = 'ativos';
                  }
 
-                 // Busca itens (pode ser <li> ou <div class="student-item"> ou apenas <a>)
-                 // Vamos buscar qualquer elemento que TENHA um link ou texto e NÃO seja empty-slot
                  const rawItems = group.querySelectorAll('li, .student-item, a');
                  const uniqueElements = new Set();
                  
                  rawItems.forEach(el => {
-                     // Filtra elementos que são apenas containers vazios ou empty-slots
                      if(el.classList.contains('empty-slot')) return;
-                     if(el.tagName === 'A' && el.parentElement.tagName === 'LI') return; // Pega o pai LI
+                     if(el.tagName === 'A' && el.parentElement.tagName === 'LI') return;
                      uniqueElements.add(el.tagName === 'A' ? el.parentElement : el);
                  });
 
@@ -443,15 +454,18 @@
         card.className = `reg-card ${editingId === item.id ? 'editing' : ''}`;
         
         let extraInfo = '';
-        if (currentMode === 'clan' || currentMode === 'school') {
+        if (currentMode === 'clan' || currentMode === 'school' || currentMode === 'faction') {
             let l1 = item.extra1; let l2 = item.extra2;
             if(currentMode === 'clan') {
                 const c = CLANS.find(x => x.val === l1); if(c) l1 = c.label;
-            } else {
+            } else if(currentMode === 'school') {
                 const s = SCHOOLS.find(x => x.val === l1); if(s) l1 = s.label;
                 const g = GRADES.find(x => x.val === l2); if(g) l2 = g.label;
+            } else {
+                const f = FACTIONS.find(x => x.val === l1); if(f) l1 = f.label;
+                l2 = 'Membros Ativos';
             }
-            extraInfo = `<div style="font-size:0.8em; color:var(--accent); margin-top:2px;">${l1} • ${l2}</div>`;
+            extraInfo = `<div style="font-size:0.8em; color:var(--accent); margin-top:2px;">${l1} ${currentMode !== 'faction' ? '• ' + l2 : ''}</div>`;
         }
 
         card.innerHTML = `
@@ -481,7 +495,7 @@
       editLink.value = item.link;
       editIdField.value = item.id;
 
-      if (currentMode === 'clan' || currentMode === 'school') {
+      if (currentMode === 'clan' || currentMode === 'school' || currentMode === 'faction') {
           editExtra1.value = item.extra1;
           editExtra2.value = item.extra2;
       }
@@ -505,7 +519,7 @@
         user: editUser.value.trim(),
         link: editLink.value.trim() || '#',
         extra1: editExtra1.value,
-        extra2: editExtra2.value
+        extra2: currentMode === 'faction' ? 'ativos' : editExtra2.value
       };
 
       if (editingId) {
@@ -556,7 +570,7 @@
              cols += `<div class="school-column ${c.val}"> <div class="school-header"> ${c.svg} <div class="school-name">${c.label}</div> <div class="school-counter">Vagas Principais: ${c.main}</div> </div> <div class="grade-list"> <div class="grade-group"> <div class="grade-title" style="color:${c.color};">Linhagem Principal <span class="grade-count">(${main.length}/${c.main})</span></div> <ul class="student-list"> ${buildList(main, c.main)} </ul> </div> <div class="grade-group"> <div class="grade-title">Linhagem Secundária <span class="grade-count">(${sec.length}/${c.sec})</span></div> <ul class="student-list"> ${buildList(sec, c.sec)} </ul> </div> </div> </div>`;
         });
 
-        const reqBox = `<div class="census-request-box"> <div class="req-title">NOVO REGISTRO DE CLÃ</div> <div class="req-desc" style="margin-bottom: 10px; font-size: 0.9em; color: #a0a0a0;">Copie o código abaixo e responda ao tópico:</div> <textarea class="req-code" readonly onclick="this.select();"> Nome: Nome do Personagem Clã: Gojo / Zenin / Kamo / Okkotsu / Inumaki Linhagem: Principal / Secundária Ficha: Link_da_Ficha</textarea> </div>`;
+        const reqBox = `<div class="census-request-box"> <div class="req-title">NOVO REGISTRO DE CLÃ</div> <div class="req-desc" style="margin-bottom: 10px; font-size: 0.9em; color: #a0a0a0;">Copie o código abaixo e responda ao tópico:</div> <textarea class="req-code" readonly onclick="this.select();"> Nome: Nome do Personagem\nClã: Gojo / Zenin / Kamo / Okkotsu / Inumaki\nLinhagem: Principal / Secundária\nFicha: Link_da_Ficha</textarea> </div>`;
         
         finalHTML = `${css}<div class="school-census-container"> <div class="census-header"> <h1 class="census-title">Registro de Linhagens</h1> <div class="census-subtitle">Censo Oficial das Famílias Jujutsu</div> </div> <div class="clan-grid-wrapper"> ${cols} </div> ${reqBox} <div class="census-footer">Atualizado em: ${new Date().toLocaleDateString('pt-BR')}</div> </div>`;
 
@@ -588,14 +602,58 @@
              cols += `<div class="school-column ${s.val}"><div class="school-header"><div class="school-bg-icon" style="font-size: 60px !important; line-height: 1 !important; display: block !important; margin-bottom: 10px !important;">${s.icon}</div><div class="school-name">${s.label}</div><div class="school-counter">Total: ${items.length} Alunos</div></div><div class="grade-list">${grades}</div></div>`;
         });
 
-        const reqBox = `<div class="census-request-box"><div class="req-title">NOVO REGISTRO</div><div class="req-desc" style="margin-bottom: 10px; font-size: 0.9em; color: #a0a0a0;">Copie o código abaixo e responda ao tópico:</div><textarea class="req-code" readonly onclick="this.select();">Nome: Nome do PersonagemEscola: Tokyo / KyotoAno/Cargo: 1º Ano / ProfessorFicha: Link_da_Ficha</textarea></div>`;
+        const reqBox = `<div class="census-request-box"><div class="req-title">NOVO REGISTRO</div><div class="req-desc" style="margin-bottom: 10px; font-size: 0.9em; color: #a0a0a0;">Copie o código abaixo e responda ao tópico:</div><textarea class="req-code" readonly onclick="this.select();">Nome: Nome do Personagem\nEscola: Tokyo / Kyoto\nAno/Cargo: 1º Ano / Professor\nFicha: Link_da_Ficha</textarea></div>`;
 
         finalHTML = `${css}<div class="school-census-container"><div class="census-header"><h1 class="census-title">Censo Escolar</h1><div class="census-subtitle">Registro Oficial de Estudantes e Corpo Docente</div></div><div class="schools-grid">${cols}</div>${reqBox}<div class="census-footer">Atualizado em: ${new Date().toLocaleDateString('pt-BR')}</div></div>`;
 
+      } else if (currentMode === 'faction') {
+        const css = `<link href="https://gaaaaaaaaabs.github.io/goldenagerepositor.io/registro-escolas.css" rel="stylesheet" type="text/css">
+<style>
+:root { --legalista-accent: #3498db; --legalista-dark: #1f3a58; --pentarquia-accent: #e74c3c; --pentarquia-dark: #4a1714; }
+.school-column.tokyo .school-header { background: linear-gradient(135deg, var(--legalista-dark), var(--reg-bg)); border-bottom: 3px solid var(--legalista-accent); }
+.school-column.tokyo .grade-title { background: rgba(52, 152, 219, 0.1); color: #85c1e9; border-bottom: 1px solid rgba(52, 152, 219, 0.2); }
+.school-column.tokyo .status-dot.active { background: #3498db; box-shadow: 0 0 5px #3498db; }
+.school-column.kyoto .school-header { background: linear-gradient(135deg, var(--pentarquia-dark), var(--reg-bg)); border-bottom: 3px solid var(--pentarquia-accent); }
+.school-column.kyoto .grade-title { background: rgba(231, 76, 60, 0.1); color: #f1948a; border-bottom: 1px solid rgba(231, 76, 60, 0.2); }
+.school-column.kyoto .status-dot.active { background: #e74c3c; box-shadow: 0 0 5px #e74c3c; }
+</style>`;
+
+        let cols = '';
+        FACTIONS.forEach(f => {
+            const items = sortedItems.filter(i => i.extra1 === f.val);
+            let listHtml = '';
+            items.forEach(i => {
+                listHtml += `<li class="student-item"><a href="${i.link}" class="student-link" target="_blank"><span class="status-dot active"></span> ${i.name}</a></li>`;
+            });
+
+            cols += `<div class="school-column ${f.val}">
+                <div class="school-header">
+                    <div class="school-bg-icon" style="font-size: 60px !important; line-height: 1 !important; display: block !important; margin-bottom: 10px !important;">${f.icon}</div>
+                    <div class="school-name">${f.label}</div>
+                    <div class="school-counter">Total de Filiados: ${items.length}</div>
+                </div>
+                <div class="grade-list">
+                    <div class="grade-group">
+                        <div class="grade-title">Membros Ativos</div>
+                        <ul class="student-list">${listHtml}</ul>
+                    </div>
+                </div>
+            </div>`;
+        });
+
+        const reqBox = `<div class="census-request-box">
+            <div class="req-title">NOVO ALISTAMENTO</div>
+            <div class="req-desc" style="margin-bottom: 10px; font-size: 0.9em; color: #a0a0a0;">Copie o código abaixo e responda ao tópico para registrar a sua lealdade:</div>
+[code][b]Nome do Personagem:[/b] 
+[b]Facção Escolhida:[/b] (Legalista ou Pentarquia)
+[b]Link da Ficha:[/b] 
+[b]Link do RP de Entrada:[/b][/code]
+        </div>`;
+
+        finalHTML = `${css}<div class="school-census-container"><div class="census-header"><h1 class="census-title">Registro de Facções</h1><div class="census-subtitle">Alistamento Oficial da Guerra Ideológica</div></div><div class="schools-grid">${cols}</div>${reqBox}<div class="census-footer">A guerra não espera os indecisos.</div></div>`;
+
       } else {
-        // ... Mantendo lógica antiga (PP/Tech/Part) intacta ...
-        // Simplificado para economizar espaço aqui, mas assuma que é o mesmo bloco 'else' do código anterior
-        // Vou reinserir o bloco base dos modos antigos para garantir funcionalidade total
+        // Modos Simples
         let title='', reqT='', rules='', reqC='', listC='';
         if(currentMode==='pp'){
              title='Registro de Photoplayer'; reqT='Faça seu Registro'; reqC=`Nome do Photoplayer: Nome do Anime/Manga\nNome do Personagem: Nome da sua Ficha\nLink da Ficha: URL`;
@@ -611,23 +669,7 @@
         if (currentMode === 'part') {
             sortedItems.forEach(i => { listC += `<div class="jjk-reg-item ${i.status}"><div class="jjk-reg-info"><span class="jjk-reg-name">${i.name}</span><span class="jjk-reg-count">${i.count}</span></div><div class="jjk-reg-users"><a href="${i.link}">${i.user}</a></div></div>`; });
         } else {
-            const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-            let idx = 0;
-            alpha.forEach(l => {
-                listC += `<div class="jjk-reg-letter">${l}</div>`;
-                while(idx < sortedItems.length) {
-                    const item = sortedItems[idx];
-                    if(item.name.trim().charAt(0).toUpperCase() <= l && l !== 'Z') { // Logica simplificada, a original é melhor
-                       if((item.name.trim().charAt(0).toUpperCase() < l && l==='A') || item.name.trim().charAt(0).toUpperCase() === l) {
-                           const extra = currentMode==='pp' ? '' : `<span class="jjk-reg-count">${item.count}</span>`;
-                           listC += `<div class="jjk-reg-item ${item.status||''}"><div class="jjk-reg-info"><span class="jjk-reg-name">${item.name}</span>${extra}</div><div class="jjk-reg-users"><a href="${item.link}">${item.user}</a></div></div>`;
-                           idx++;
-                       } else break;
-                    } else break;
-                }
-            });
-             // Correção rápida do loop alpha para não travar (usar a logica original exata seria melhor, mas aqui vai funcionar)
-             listC = ''; // Reset para fazer do jeito simples
+             const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
              alpha.forEach(letter => {
                 listC += `<div class="jjk-reg-letter">${letter}</div>`;
                 sortedItems.forEach(item => {
@@ -655,6 +697,10 @@
             SCHOOLS.forEach(s => editExtra1.add(new Option(s.label, s.val)));
             GRADES.forEach(g => editExtra2.add(new Option(g.label, g.val)));
             labelExtra1.textContent = 'Escola'; labelExtra2.textContent = 'Ano / Cargo';
+        } else if (currentMode === 'faction') {
+            FACTIONS.forEach(f => editExtra1.add(new Option(f.label, f.val)));
+            editExtra2.add(new Option('Membros Ativos', 'ativos'));
+            labelExtra1.textContent = 'Facção'; labelExtra2.textContent = '';
         }
     }
 
@@ -669,9 +715,19 @@
         editName.placeholder = "Personagem (Obra)"; labelName.textContent = "Nome";
       } else if (currentMode === 'tech' || currentMode === 'part') {
         tF.forEach(el => el.classList.remove('hidden'));
-      } else {
+        labelName.textContent = "Nome";
+        editName.placeholder = "Nome";
+      } else if (currentMode === 'clan' || currentMode === 'school' || currentMode === 'faction') {
         sF.forEach(el => el.classList.remove('hidden'));
         populateExtras();
+        labelName.textContent = "Nome (Personagem)";
+        editName.placeholder = "Nome";
+        
+        if (currentMode === 'faction') {
+           editExtra2.parentElement.classList.add('hidden');
+        } else {
+           editExtra2.parentElement.classList.remove('hidden');
+        }
       }
       renderList();
     });
